@@ -1,0 +1,47 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "conanfile.py",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "conans.conan",
+      "justMyCode": true,
+      "args": [
+        "build",
+        ".",
+        "--build=missing",
+        "-pr:b",
+        "./env/profiles/native.profile",
+        "-pr:h",
+        "./env/profiles/native.profile",
+        "-s:a",
+        "build_type=Debug"
+      ]
+    },
+    {
+      "name": "CMake Target",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "${defaultBuildTask}",
+      "miDebuggerPath": "/usr/bin/gdb"
+    }
+  ]
+}

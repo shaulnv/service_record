@@ -1,0 +1,2 @@
+// EXAMPLE: Define the project version
+#define PROJECT_VERSION "@PROJECT_VERSION@"

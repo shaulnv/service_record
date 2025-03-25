@@ -1,0 +1,62 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/.git": true,
+			"**/.svn": true,
+			"**/.hg": true,
+			"**/CVS": true,
+			"**/.DS_Store": true,
+			"**/Thumbs.db": true,
+			"**/out": true,
+			"**/__pycache__": true,
+			"**/.cache": true,
+			"**/*.o": true,
+			"**/*.lo": true,
+			"**/*.a": true,
+			"**/*.la": true
+		},
+		"search.exclude": {
+			"**/node_modules": true,
+			"**/bower_components": true,
+			"**/*.code-search": true,
+			"**/out": true,
+			"build/**": true
+		},
+		"[python]": {
+			"editor.defaultFormatter": "ms-python.autopep8"
+		},
+		"cmakeFormat.exePath": "{workspaceFolder}/.venv/bin/cmake-format",
+		"C_Cpp.clang_format_path": "${workspaceFolder}/.venv/bin/clang-format",
+		"cmake.cmakePath": "${workspaceFolder}/.venv/bin/cmake",
+		"cmake.clearOutputBeforeBuild": true,
+		"cmake.automaticReconfigure": true,
+		"cmake.sourceDirectory": "${workspaceFolder}",
+		"cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
+		"cmake.generator": "Ninja"
+	},
+	"extensions": {
+		"recommendations": [
+			"foxundermoon.shell-format",
+			"cheshirekow.cmake-format",
+			"ms-python.autopep8",
+			"ms-python.debugpy",
+			"ms-python.python",
+			"ms-vscode.cpptools",
+			"ms-vscode.cpptools-extension-pack",
+			"llvm-vs-code-extensions.vscode-clangd",
+			"benjamin-simmonds.pythoncpp-debug",
+			"guyutongxue.cpp-reference",
+			"eamodio.gitlens",
+			"matepek.vscode-catch2-test-adapter",
+			"twxs.cmake",
+			"ms-vscode.cmake-tools",
+			"josetr.cmake-language-support-vscode",
+			"sirmspencer.vscode-autohide"
+		]
+	}
+}

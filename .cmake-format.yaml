@@ -1,0 +1,32 @@
+# -----------------------------
+# Options affecting formatting.
+# -----------------------------
+format:
+  # How wide to allow formatted cmake files
+  line_width: 120
+
+  # Format command names consistently as 'lower' or 'upper' case
+  command_case: lower
+
+  # Format keywords consistently as 'lower' or 'upper' case
+  keyword_case: upper
+
+  # If true, the argument lists which are known to be sortable will be sorted
+  # lexicographically
+  enable_sort: true
+
+  # If true, the parsers may infer whether or not an argument list is sortable
+  # (without annotation).
+  autosort: true
+
+# -------------------------------------
+# Miscellaneous configurations options.
+# -------------------------------------
+misc:
+  # A dictionary containing any per-command configuration overrides.
+  # Currently only `command_case` is supported.
+  per_command:
+    PackageProject:
+      command_case: unchanged
+    CPMAddPackage:
+      command_case: unchanged
