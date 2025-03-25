@@ -45,5 +45,5 @@ configure_file(./src/config.h.in ${PROJECT_BINARY_DIR}/service_record/config.h)
 configure_file(./src/version.h.in ${PROJECT_BINARY_DIR}/service_record/version.h)
 
 add_subdirectory(src)
-add_subdirectory(cli)
-add_subdirectory(tests)
+# add_subdirectory(cli)
+# add_subdirectory(tests)

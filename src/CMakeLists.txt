@@ -1,7 +1,7 @@
 find_package(fmt REQUIRED)
 
 add_library(service_record)
-target_sources(service_record PRIVATE ./service_record.cpp)
+target_sources(service_record PRIVATE ./service_record.c ./services.c ./services.h)
 target_include_directories(
   service_record
   PUBLIC $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}> #
