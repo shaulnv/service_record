@@ -967,7 +967,7 @@ int sr_init(struct sr_ctx** context, const char* dev_name, int port, sr_log_func
     ctx->dev->pkey = SR_DEFAULT_PKEY;
     ctx->dev->fabric_timeout_ms = SR_DEFAULT_FABRIC_TIMEOUT;
     ctx->dev->pkey_index = 0;
-    ctx->service_name = strndup(SR_DEFAULT_SERVICE_NAME, SR_DEV_SERVICE_NAME_MAX);
+    ctx->service_name = strdup(SR_DEFAULT_SERVICE_NAME);
     ctx->service_id = SR_DEFAULT_SERVICE_ID;
     ctx->flags = 0;
 
