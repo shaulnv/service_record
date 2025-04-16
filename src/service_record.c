@@ -138,7 +138,7 @@ static uint64_t get_time_stamp(void)
     gettimeofday(&tv, NULL);
 
     /* Convert the time of day into a microsecond timestamp. */
-    tstamp = ((uint64_t)tv.tv_sec * 1000000) + (uint64_t)tv.tv_usec;
+    tstamp = ((uint64_t)tv.tv_sec) * 1000000ULL + (uint64_t)tv.tv_usec;
 
     return (tstamp);
 }
