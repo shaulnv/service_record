@@ -5,7 +5,7 @@
  * See file LICENSE for terms.
  */
 
-#include "service_record.h"
+#include "../include/service_record/service_record.h"
 // #include "mads/adb_to_c_utils.h"
 #include "services.h"
 
@@ -112,10 +112,15 @@ static void sr_prepare_ib_service_record(struct sr_ctx* context,
                                          const uint8_t (*service_key)[SR_128_BIT_SIZE])
 {
     sr->id = context->service_id;
-    strcpy(sr->name, context->service_name);
+    strncpy(sr->name, context->service_name, sizeof(sr->name) - 1);
+    sr->name[sizeof(sr->name) - 1] = '\0';
     sr->lease = context->sr_lease_time;
     memset(sr->data, 0, sizeof(sr->data));
-    memcpy(sr->data, data, MIN(data_size, sizeof(sr->data)));
+    size_t copy_size = MIN(data_size, sizeof(sr->data));
+    memcpy(sr->data, data, copy_size);
+    if (copy_size < sizeof(sr->data)) {
+        sr_log_warn("Service data size received is %zu bytes, truncated to %zu bytes", data_size, copy_size);
+    }
 
     memset(record, 0, sizeof(*record));
     record->service_id = __cpu_to_be64(sr->id);
@@ -694,9 +699,11 @@ static int dev_unregister_service(struct sr_dev* dev, uint64_t id, uint8_t* port
 
 void fill_dev_service_from_ib_service_record(struct sr_dev_service* service, struct sr_ib_service_record* record)
 {
+    size_t name_len;
     service->id = __be64_to_cpu(record->service_id);
-    memcpy(service->name, record->service_name, strnlen(record->service_name, sizeof(service->name) - 1));
-    service->name[strnlen(record->service_name, sizeof(service->name) - 1)] = '\0';
+    name_len = strnlen(record->service_name, sizeof(service->name) - 1);
+    memcpy(service->name, record->service_name, name_len);
+    service->name[name_len] = '\0';
     memcpy(service->data, &record->service_data, sizeof(service->data));
     memcpy(service->port_gid, record->service_gid, sizeof(service->port_gid));
 }
