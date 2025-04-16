@@ -952,21 +952,43 @@ static inline unsigned long get_timer(void)
 
 int sr_init(struct sr_ctx** context, const char* dev_name, int port, sr_log_func log_func_in, struct sr_config* conf)
 {
-    struct sr_ctx* ctx = calloc(1, sizeof(struct sr_ctx));
+    struct sr_ctx* ctx = NULL;
     int ret = 0;
 
-    if (!ctx)
+    /* Input validation */
+    if (!context || !dev_name) {
+        sr_log_err("Invalid input parameters");
+        return -EINVAL;
+    }
+
+    if (port < 0) {
+        sr_log_err("Invalid port number: %d", port);
+        return -EINVAL;
+    }
+
+    /* Allocate and initialize context */
+    ctx = calloc(1, sizeof(struct sr_ctx));
+    if (!ctx) {
+        sr_log_err("Failed to allocate context");
         return -ENOMEM;
+    }
 
     ctx->dev = calloc(1, sizeof(struct sr_dev));
     if (!ctx->dev) {
+        sr_log_err("Failed to allocate device context");
         ret = -ENOMEM;
         goto err;
     }
 
+    /* Initialize logging */
+    if (!log_func_in) {
+        sr_log_err("Invalid log function");
+        ret = -EINVAL;
+        goto err;
+    }
     log_func = log_func_in;
 
-    // Set default values first
+    /* Set default values */
     ctx->sr_lease_time = SR_DEFAULT_LEASE_TIME;
     ctx->sr_retries = SR_DEFAULT_RETRIES;
     ctx->dev->query_sleep = SR_DEFAULT_QUERY_SLEEP;
@@ -975,44 +997,68 @@ int sr_init(struct sr_ctx** context, const char* dev_name, int port, sr_log_func
     ctx->dev->fabric_timeout_ms = SR_DEFAULT_FABRIC_TIMEOUT;
     ctx->dev->pkey_index = 0;
     ctx->service_name = strdup(SR_DEFAULT_SERVICE_NAME);
+    if (!ctx->service_name) {
+      sr_log_err("Failed to allocate default service name");
+      ret = -ENOMEM;
+      goto err;
+    }
     ctx->service_id = SR_DEFAULT_SERVICE_ID;
     ctx->flags = 0;
 
-    // Override with provided configuration if available
+    /* Override with provided configuration */
     if (conf) {
-        if (conf->sr_lease_time)
-            ctx->sr_lease_time = conf->sr_lease_time;
-        if (conf->sr_retries)
-            ctx->sr_retries = conf->sr_retries;
-        if (conf->query_sleep)
-            ctx->dev->query_sleep = conf->query_sleep;
-        if (conf->sa_mkey)
-            ctx->dev->sa_mkey = conf->sa_mkey;
-        if (conf->pkey)
-            ctx->dev->pkey = conf->pkey;
-        if (conf->fabric_timeout_ms)
-            ctx->dev->fabric_timeout_ms = conf->fabric_timeout_ms;
-        if (conf->pkey_index)
-            ctx->dev->pkey_index = conf->pkey_index;
-        if (conf->service_name)
+        /* Validate configuration values */
+        //   if (conf->sr_lease_time && conf->sr_lease_time > MAX_LEASE_TIME) {
+        //     sr_log_err("Invalid lease time: %u", conf->sr_lease_time);
+        //     ret = -EINVAL;
+        //     goto err;
+        //   }
+
+        if (conf->service_name) {
+            size_t name_len = strlen(conf->service_name);
+            if (name_len >= SR_DEV_SERVICE_NAME_MAX) {
+                sr_log_err("Service name too long: %zu bytes", name_len);
+                ret = -EINVAL;
+                goto err;
+            }
+            if (ctx->service_name) {
+                free(ctx->service_name);
+            }
             ctx->service_name = strndup(conf->service_name, SR_DEV_SERVICE_NAME_MAX);
-        if (conf->service_id)
-            ctx->service_id = conf->service_id;
-        if (conf->mad_send_type)
-            ctx->dev->mad_send_type = conf->mad_send_type;
-        if (conf->flags)
-            ctx->flags = conf->flags;
-        if (conf->mad_send_type > SR_MAD_SEND_LAST) {
-            ret = -EINVAL;
-            goto err;
+            if (!ctx->service_name) {
+                sr_log_err("Failed to allocate service name");
+                ret = -ENOMEM;
+                goto err;
+            }
         }
+
+        /* Apply valid configuration values */
+        if (conf->sr_lease_time) ctx->sr_lease_time = conf->sr_lease_time;
+        if (conf->sr_retries) ctx->sr_retries = conf->sr_retries;
+        if (conf->query_sleep) ctx->dev->query_sleep = conf->query_sleep;
+        if (conf->sa_mkey) ctx->dev->sa_mkey = conf->sa_mkey;
+        if (conf->pkey) ctx->dev->pkey = conf->pkey;
+        if (conf->fabric_timeout_ms) ctx->dev->fabric_timeout_ms = conf->fabric_timeout_ms;
+        if (conf->pkey_index) ctx->dev->pkey_index = conf->pkey_index;
+        if (conf->service_id) ctx->service_id = conf->service_id;
+        if (conf->mad_send_type) {
+            if (conf->mad_send_type > SR_MAD_SEND_LAST) {
+                sr_log_err("Invalid MAD send type: %d", conf->mad_send_type);
+                ret = -EINVAL;
+                goto err;
+            }
+            ctx->dev->mad_send_type = conf->mad_send_type;
+        }
+        if (conf->flags) ctx->flags = conf->flags;
     }
 
+    /* Initialize device */
     ctx->dev->seed = get_timer();
     memset(ctx->dev->service_cache, 0, sizeof(ctx->dev->service_cache));
 
-    if ((ret = services_dev_init(ctx->dev, dev_name, port))) {
-        free(ctx->dev);
+    ret = services_dev_init(ctx->dev, dev_name, port);
+    if (ret) {
+        sr_log_err("Failed to initialize device: %d", ret);
         goto err;
     }
 
@@ -1021,7 +1067,6 @@ int sr_init(struct sr_ctx** context, const char* dev_name, int port, sr_log_func
 
 err:
     sr_cleanup(ctx);
-    ctx = NULL;
     return ret;
 }
 
