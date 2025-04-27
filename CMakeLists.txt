@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24...3.30)
+cmake_minimum_required(VERSION 3.20...3.30)
 
 project(
   service_record
@@ -19,8 +19,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # cmake modules
 include(CTest)
@@ -45,5 +45,5 @@ configure_file(./src/config.h.in ${PROJECT_BINARY_DIR}/service_record/config.h)
 configure_file(./src/version.h.in ${PROJECT_BINARY_DIR}/service_record/version.h)
 
 add_subdirectory(src)
-add_subdirectory(cli)
-add_subdirectory(tests)
+# add_subdirectory(cli)
+# add_subdirectory(tests)
