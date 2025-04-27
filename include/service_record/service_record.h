@@ -45,6 +45,11 @@ extern "C" {
 
 #define SA_WELL_KNOWN_GUID 0x0200000000000002
 
+#ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
+#define __check_format(string_index, first_to_check) __attribute__((format(printf, string_index, first_to_check)))
+#else
+#define __check_format(x, y)
+#endif
 struct sr_dev_service
 {
     uint64_t id;                           /* Fabric-unique id */
@@ -117,19 +122,11 @@ struct sr_config
     uint16_t pkey; /* pkey for the request */
     unsigned fabric_timeout_ms;
     uint16_t pkey_index; /* pkey index for MAD */
-    enum sr_mad_send_type mad_send_type;
+    enum sr_mad_send_type mad_send_type; /* MAD send type */
     uint32_t flags;
     char* service_name;  /* Service name */
     uint64_t service_id; /* Service ID */
 };
-
-#ifdef HAVE_FUNC_ATTRIBUTE_FORMAT
-
-#define __check_format(string_index, first_to_check) __attribute__((format(printf, string_index, first_to_check)))
-
-#else
-#define __check_format(x, y)
-#endif
 
 typedef void (*sr_log_func)(const char* filename, int line_num, const char* func_name, int log_level, const char* format, ...)
     __check_format(5, 6);
@@ -151,15 +148,9 @@ int sr_init(struct sr_ctx** context, const char* dev_name, int port, sr_log_func
 int sr_init_via_guid(struct sr_ctx** context, uint64_t guid, sr_log_func log_func_in, struct sr_config* conf);
 int sr_cleanup(struct sr_ctx* context);
 int sr_register_service(struct sr_ctx* context, const void* data, size_t data_size, const uint8_t (*service_key)[SR_128_BIT_SIZE]);
+int sr_unregister_service(struct sr_ctx* context, const uint8_t (*service_key)[SR_128_BIT_SIZE]);
 int sr_query_service(struct sr_ctx* context, struct sr_dev_service* srs, int srs_num, int retries);
 void sr_printout_service(struct sr_dev_service* srs, int srs_num);
-// void sr_prepare_ib_service_record(struct sr_ctx* context,
-//                                   struct sr_dev_service* sr,
-//                                   struct sr_ib_service_record* record,
-//                                   const void* data,
-//                                   size_t data_size,
-//                                   const uint8_t (*service_key)[SR_128_BIT_SIZE]);
-// void fill_dev_service_from_ib_service_record(struct sr_dev_service* service, struct sr_ib_service_record* record);
 
 #ifdef __cplusplus
 }

@@ -17,7 +17,7 @@
 #include <infiniband/umad_sa.h>
 #include <infiniband/umad_types.h>
 #include <infiniband/verbs.h>
-#include "config.h"
+// #include "config.h"
 #include "service_record.h"
 #if HAVE_INFINIBAND_MLX5DV_H
 #include <infiniband/mlx5dv.h>
@@ -360,10 +360,12 @@ int services_dev_init(struct sr_dev* dev, const char* dev_name, int port)
 
     for (int i = 0; i < num_devices; i++) {
         if (!dev_name || !strlen(dev_name) || !strcmp(ca_names[i], dev_name)) {
-            if (dev_name)
-                strcpy(dev->dev_name, dev_name);
-            else
-                strcpy(dev->dev_name, "");
+          if (dev_name) {
+            strncpy(dev->dev_name, dev_name, sizeof(dev->dev_name) - 1);
+            dev->dev_name[sizeof(dev->dev_name) - 1] = '\0';
+          } else {
+            strcpy(dev->dev_name, "");
+          }
 
             if (!open_port(dev, port)) {
                 if (dev->mad_send_type == SR_MAD_SEND_VERBS || dev->mad_send_type == SR_MAD_SEND_VERBS_DEVX) {

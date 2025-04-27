@@ -104,7 +104,7 @@ static inline int report_sa_err(struct sr_dev* dev, uint16_t mad_status, int hid
     return EPROTO;
 }
 
-static void sr_prepare_ib_service_record(struct sr_ctx* context,
+static int sr_prepare_ib_service_record(struct sr_ctx* context,
                                          struct sr_dev_service* sr,
                                          struct sr_ib_service_record* record,
                                          const void* data,
@@ -112,27 +112,33 @@ static void sr_prepare_ib_service_record(struct sr_ctx* context,
                                          const uint8_t (*service_key)[SR_128_BIT_SIZE])
 {
     sr->id = context->service_id;
-    strncpy(sr->name, context->service_name, sizeof(sr->name) - 1);
-    sr->name[sizeof(sr->name) - 1] = '\0';
+    // strncpy(sr->name, context->service_name, sizeof(sr->name) - 1);
+    // sr->name[sizeof(sr->name) - 1] = '\0';
+    snprintf(sr->name, sizeof(sr->name), "%s", context->service_name);
     sr->lease = context->sr_lease_time;
     memset(sr->data, 0, sizeof(sr->data));
     size_t copy_size = MIN(data_size, sizeof(sr->data));
-    memcpy(sr->data, data, copy_size);
-    if (copy_size < sizeof(sr->data)) {
-        sr_log_warn("Service data size received is %zu bytes, truncated to %zu bytes", data_size, copy_size);
+    if (copy_size < data_size) {
+        sr_log_err("Unable to register service with data len %zu bytes, max supported data len is %zu bytes", data_size, sizeof(sr->data));
+        return -EINVAL;
     }
-
+    memcpy(sr->data, data, copy_size);
     memset(record, 0, sizeof(*record));
     record->service_id = __cpu_to_be64(sr->id);
     record->service_pkey = __cpu_to_be16(context->dev->pkey);
     record->service_lease = __cpu_to_be32(sr->lease);
-    memcpy(record->service_name, sr->name, strnlen(sr->name, sizeof(record->service_name) - 1));
+    //memcpy(record->service_name, sr->name, strnlen(sr->name, sizeof(record->service_name) - 1));
+    // strncpy(record->service_name, sr->name, sizeof(record->service_name)-1);
+    // record->service_name[sizeof(record->service_name)-1] = '\0';
+    snprintf(record->service_name, sizeof(record->service_name), "%s", sr->name);
     memcpy(&record->service_data, sr->data, sizeof(sr->data));
     memcpy(&record->service_gid, &context->dev->port_gid, sizeof(record->service_gid));
 
     if (service_key) {
         memcpy(record->service_key, service_key, sizeof(record->service_key));
     }
+
+    return 0;
 }
 
 static uint64_t get_time_stamp(void)
@@ -251,9 +257,9 @@ static int verbs_dev_sa_query(struct sr_dev* dev,
     __be64 sa_mkey;
     uint64_t tid, mad_tid;
 
-    if (req_size > UMAD_LEN_SA_DATA)
+    if (req_size > UMAD_LEN_SA_DATA) {
         return -ENOBUFS;
-
+    }
     /* check SA method */
     if ((ret = dev_sa_response_method(method)) < 0) {
         sr_log_err("Unsupported SA method %d", method);
@@ -274,8 +280,9 @@ static int verbs_dev_sa_query(struct sr_dev* dev,
     sa_mkey = __cpu_to_be64(dev->sa_mkey);
     memcpy(sa_mad->sm_key, &sa_mkey, sizeof(sa_mad->sm_key));
     sa_mad->comp_mask = __cpu_to_be64(comp_mask);
-    if (req_data)
+    if (req_data) {
         memcpy(sa_mad->data, req_data, req_size);
+    }
 
     ret = mad_send(dev, sa_mad, sizeof(*sa_mad));
     if (ret) {
@@ -382,8 +389,9 @@ static int umad_dev_sa_query(struct sr_dev* dev,
     uint64_t tid;
     union ibv_gid sa_gid;
 
-    if (req_size > UMAD_LEN_SA_DATA)
+    if (req_size > UMAD_LEN_SA_DATA){
         return -ENOBUFS;
+    }
 
     /* check SA method */
     if ((ret = dev_sa_response_method(method)) < 0) {
@@ -425,8 +433,9 @@ static int umad_dev_sa_query(struct sr_dev* dev,
     sa_mkey = __cpu_to_be64(dev->sa_mkey);
     memcpy(sa_mad->sm_key, &sa_mkey, sizeof(sa_mad->sm_key));
     sa_mad->comp_mask = __cpu_to_be64(comp_mask);
-    if (req_data)
+    if (req_data){
         memcpy(sa_mad->data, req_data, req_size);
+    }
 
     if ((ret = umad_send(dev->portid, dev->agent, umad, sizeof(*sa_mad), dev->fabric_timeout_ms, 0)) < 0) {
         sr_log_err("umad_send failed: %s. attr 0x%x method 0x%x", strerror(errno), attr, method);
@@ -443,8 +452,9 @@ static int umad_dev_sa_query(struct sr_dev* dev,
             if (!(newumad = realloc(umad, sizeof(*umad) + len))) {
                 sr_log_err("Unable to realloc umad");
                 goto out_free_umad;
-            } else
+            } else {
                 umad = newumad;
+            }
             ret = umad_recv(dev->portid, umad, &len, dev->fabric_timeout_ms);
         } while (ret < 0 && errno == ENOSPC);
 
@@ -502,10 +512,11 @@ static int umad_dev_sa_query(struct sr_dev* dev,
 
     /* Calculate record size */
     record_size = __be16_to_cpu(sa_mad->attr_offset) * 8;
-    if (method == UMAD_SA_METHOD_GET_TABLE)
+    if (method == UMAD_SA_METHOD_GET_TABLE) {
         num_records = record_size ? (data_size / record_size) : 0;
-    else
+    } else {
         num_records = 1;
+    }
 
     /* Copy data to a new buffer */
     if (resp_data) {
@@ -516,8 +527,9 @@ static int umad_dev_sa_query(struct sr_dev* dev,
         memcpy(*resp_data, sa_mad->data, data_size);
     }
 
-    if (resp_attr_size)
+    if (resp_attr_size) {
         *resp_attr_size = record_size;
+    }
 
     ret = num_records;
 
@@ -573,8 +585,9 @@ retry:
             sr_log_info("sa_query() returned empty set, %d retries left", retries);
             free(*resp_data);
             *resp_data = NULL;
-        } else if (retries == 0)
+        } else if (retries == 0) {
             sr_log_err("Unable to query SR: %s, %d retries left", strerror(ret), retries);
+        }
 
         usleep(dev->query_sleep);
     }
@@ -582,16 +595,18 @@ retry:
     prev_lid = dev->port_lid;
     if (ret < 0 && !dev_updated && method == UMAD_SA_METHOD_GET_TABLE && !services_dev_update(dev)) {
         sr_log_info("%s:%d device updated", dev->dev_name, dev->port_num);
-        if (dev->port_lid != prev_lid)
+        if (dev->port_lid != prev_lid){
             sr_log_warn("%s:%d LID change", dev->dev_name, dev->port_num);
+        }
 
         retries = retries_orig;
         dev_updated = 1;
         goto retry;
     }
 
-    if (ret < 0)
+    if (ret < 0) {
         sr_log_err("Failed to query SR: %s", strerror(-ret));
+    }
 
     return ret;
 }
@@ -697,13 +712,17 @@ static int dev_unregister_service(struct sr_dev* dev, uint64_t id, uint8_t* port
     return 0;
 }
 
-void fill_dev_service_from_ib_service_record(struct sr_dev_service* service, struct sr_ib_service_record* record)
+static void fill_dev_service_from_ib_service_record(struct sr_dev_service* service, struct sr_ib_service_record* record)
 {
-    size_t name_len;
+    //size_t name_len;
     service->id = __be64_to_cpu(record->service_id);
-    name_len = strnlen(record->service_name, sizeof(service->name) - 1);
-    memcpy(service->name, record->service_name, name_len);
-    service->name[name_len] = '\0';
+    //name_len = strnlen(record->service_name, sizeof(service->name) - 1);
+    //memcpy(service->name, record->service_name, name_len);
+    //memcpy(record->service_name, service->name, strnlen(service->name, sizeof(record->service_name) - 1));
+    //memcpy(service->name, record->service_name, strnlen(record->service_name, sizeof(service->name) - 1));
+    //strncpy(service->name, record->service_name, sizeof(service->name)-1);
+    //service->name[sizeof(service->name)-1] = '\0';
+    snprintf(service->name, sizeof(service->name), "%s", record->service_name);
     memcpy(service->data, &record->service_data, sizeof(service->data));
     memcpy(service->port_gid, record->service_gid, sizeof(service->port_gid));
 }
@@ -726,8 +745,8 @@ static int dev_get_service(struct sr_ctx* context, const char* name, struct sr_d
                                    method,
                                    UMAD_SA_ATTR_SERVICE_REC,
                                    comp_mask,
-                                   &record,
-                                   sizeof(record),
+                                   NULL,
+                                   0,
                                    &raw_data,
                                    &record_size,
                                    0,
@@ -839,7 +858,11 @@ found:
             return 1;
         }
     } else {
-        strcpy(dev_name_buf, dev_name);
+        //strcpy(dev_name_buf, dev_name);
+        //strncpy(dev_name_buf, dev_name, sizeof(dev_name_buf) -1);
+        // snprintf(dev_name_buf, sizeof(dev_name_buf), "%s", dev_name);
+        // dev_name_buf[sizeof(dev_name_buf) -1] = '\0';
+        snprintf(dev_name_buf, sizeof(dev_name_buf), "%s", dev_name);
         if (umad_get_ca(dev_name_buf, &umad_ca) < 0) {
             sr_log_err("unable to umad_get_ca");
             return 1;
@@ -865,7 +888,10 @@ int sr_register_service(struct sr_ctx* context, const void* data, size_t data_si
     int count;
     int ret;
 
-    sr_prepare_ib_service_record(context, &service, &record, data, data_size, service_key);
+    ret = sr_prepare_ib_service_record(context, &service, &record, data, data_size, service_key);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* Register/replace new service */
     if ((ret = dev_register_service(context->dev, &record)) < 0) {
@@ -888,27 +914,50 @@ int sr_register_service(struct sr_ctx* context, const void* data, size_t data_si
                 continue;
             } else {
                 // Print log message, convert the guids to ipv6 network address before printing
-                char buf_guid1[INET6_ADDRSTRLEN];
-                char buf_guid2[INET6_ADDRSTRLEN];
-                inet_ntop(AF_INET6, (void*)&(old_sr->port_gid), buf_guid1, sizeof(buf_guid1));
-                inet_ntop(AF_INET6, (void*)&(context->dev->port_gid), buf_guid2, sizeof(buf_guid2));
+                // char buf_guid1[INET6_ADDRSTRLEN];
+                // char buf_guid2[INET6_ADDRSTRLEN];
+                // inet_ntop(AF_INET6, (void*)&(old_sr->port_gid), buf_guid1, sizeof(buf_guid1));
+                // inet_ntop(AF_INET6, (void*)&(context->dev->port_gid), buf_guid2, sizeof(buf_guid2));
 
-                sr_log_warn("Previous SR (id: 0x%" PRIx64 ", guid: %s) is not the same as new SR (id: 0x%" PRIx64 ", guid: %s)",
+                sr_log_warn("Previous SR (id: 0x%" PRIx64 ") is not the same as new SR (id: 0x%" PRIx64 ")",
                             old_sr->id,
-                            buf_guid1,
-                            context->service_id,
-                            buf_guid2);
+                            context->service_id);
             }
 
             found = 1;
-            if ((ret = dev_unregister_service(context->dev, old_sr->id, old_sr->port_gid, service_key)) < 0)
+            if ((ret = dev_unregister_service(context->dev, old_sr->id, old_sr->port_gid, service_key)) < 0) {
                 sr_log_warn("Couldn't unregister old SR with id 0x%016" PRIx64 ": %s", old_sr->id, strerror(ret));
-            else
+            } else {
                 sr_log_info("Unregistered old service with id 0x%016" PRIx64, old_sr->id);
+            }
         }
     }
 
     return 0;
+}
+
+int sr_unregister_service(struct sr_ctx* context, const uint8_t (*service_key)[SR_128_BIT_SIZE]) {
+    struct sr_dev_service old_srs[SRS_MAX];
+    int result = 0;
+
+    int count = dev_get_service(context, context->service_name, old_srs,
+                                SRS_MAX, context->sr_retries, 0);
+
+    for (int i = 0; i < count; ++i) {
+        struct sr_dev_service* old_sr = &old_srs[i];
+
+        if (old_sr->id == context->service_id) {
+            int ret = dev_unregister_service(context->dev, old_sr->id, old_sr->port_gid, service_key);
+            if (ret < 0) {
+                sr_log_warn("Couldn't unregister old SR with id 0x%016" PRIx64 ": %s", old_sr->id, strerror(ret));
+                result++;
+            } else {
+                sr_log_info("Unregistered old service with id 0x%016" PRIx64, old_sr->id);
+            }
+        }
+    }
+
+    return result;
 }
 
 int sr_query_service(struct sr_ctx* context, struct sr_dev_service* srs, int srs_num, int retries)
@@ -916,7 +965,7 @@ int sr_query_service(struct sr_ctx* context, struct sr_dev_service* srs, int srs
     int try = retries;
 
     if (retries < 0)
-        try = context->sr_retries;
+        try = SR_DEFAULT_RETRIES;
 
     return dev_get_service(context, context->service_name, srs, srs_num, try, 0);
 }
@@ -943,9 +992,9 @@ static inline unsigned long get_timer(void)
     struct timeval tv;
     int ret;
 
-    do
+    do {
         ret = gettimeofday(&tv, NULL);
-    while (ret == -1 && errno == EINTR);
+    } while (ret == -1 && errno == EINTR);
 
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
